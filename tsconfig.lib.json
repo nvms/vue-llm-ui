@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "declaration": true,
+    "declarationDir": "./dist",
+    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true
+  },
+  "include": ["src/index.ts", "src/components/*.vue", "src/utils/*.ts"],
+  "exclude": ["src/App.vue", "src/main.ts"]
+}
