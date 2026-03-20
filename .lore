@@ -1,0 +1,117 @@
+-- usage --
+
+import LLMRenderer and the style.css entrypoint:
+
+  import { LLMRenderer } from 'vue-llm-ui'
+  import 'vue-llm-ui/style.css'
+
+you must import the css or block components and markdown will have no styling.
+
+bind a reactive string to :text and append to it as the LLM streams. the
+component re-parses on every change. there is no "stream mode" toggle - just
+keep appending characters to the ref.
+
+register block types by passing an array of { type, component } objects to
+the :blocks prop. the type string must exactly match what the LLM emits in
+the JSON payload's "type" field.
+
+-- block components --
+
+every block component receives a single prop called "block" which is the
+full parsed JSON object from inside the delimiters. the entire object is
+passed, not just a subset. so if the LLM emits:
+
+  【{type:"chart", chart:"pie", datasetId:"abc-123", title:"Fuel Costs"}】
+
+your component gets:
+
+  props.block = {
+    type: "chart",
+    chart: "pie",
+    datasetId: "abc-123",
+    title: "Fuel Costs"
+  }
+
+you define the shape. the renderer doesn't validate or transform it. whatever
+the LLM puts in the JSON, your component receives as-is (after json repair).
+
+block components are regular vue SFCs. they can fetch data, have local state,
+emit events - whatever you need. the renderer just mounts them with the block
+prop and gets out of the way.
+
+-- block delimiters --
+
+blocks use full-width bracket characters: 【 and 】 (U+3010 and U+3011).
+these are NOT regular square brackets. the LLM must emit these exact unicode
+characters. in your system prompt, include a clear example so the model knows
+to use them.
+
+the JSON inside does not need to be strict - unquoted keys, trailing commas,
+single quotes all get auto-repaired. this matters because LLMs often produce
+sloppy JSON mid-stream. don't try to enforce strict JSON in your system prompt,
+it causes more problems than it solves.
+
+-- streaming behavior --
+
+during streaming, if the opening 【 has been emitted but the closing 】 hasn't
+arrived yet, the renderer shows a loading state via GenericBlockComponent. once
+the closing delimiter arrives, it attempts to parse and render.
+
+if jsonrepair can't fix the JSON (truly broken), it falls back to an error
+state showing the raw content. this is rare in practice.
+
+whitespace-only text between blocks is discarded. if you need spacing between
+blocks, use markdown (a blank line or a heading) rather than relying on
+whitespace.
+
+-- code blocks --
+
+block delimiters inside markdown code fences (triple backticks) are ignored by
+the parser. this means the LLM can safely show block syntax examples in code
+without them being parsed as real blocks.
+
+inline backtick code also suppresses parsing - a block delimiter inside `inline
+code` won't be treated as a block.
+
+-- shiki / syntax highlighting --
+
+shiki is a dependency and gets installed automatically. the highlighter is
+initialized lazily on first render via a singleton promise. if it hasn't loaded
+yet when a code block appears, it falls back to vue-markdown-render.
+
+pass a theme name via the :theme prop on LLMRenderer. default is "rose-pine".
+available: rose-pine, rose-pine-moon, rose-pine-dawn, vitesse-dark,
+vitesse-light, github-dark, github-light, dracula, nord, one-dark-pro.
+
+supported languages for highlighting: javascript, typescript, python, json,
+markdown, html, css, vue. if you need more languages, call getShikiHighlighter()
+and load them yourself before mounting the component.
+
+-- prompt engineering --
+
+tell the LLM about your registered block types in the system prompt. be
+explicit about the delimiter characters and the expected JSON shape. example:
+
+  "when presenting data visually, emit a block using full-width brackets:
+   【{type:"chart", chart:"bar", datasetId:"<id>", title:"<title>"}】
+   available types: chart, table, metric-card"
+
+keep the JSON payloads small. don't put datasets inline - use an ID reference
+and have the block component fetch the data. the LLM should call a tool to
+store query results, get back an ID, and pass that ID in the block payload.
+
+-- pitfalls --
+
+the renderer uses v-bind="chunk.props" which means your block component cannot
+have a prop named "is" or "key" - these conflict with vue's special attributes.
+
+LLMRenderer's styles are scoped. if you want to style the gap between rendered
+chunks or override markdown typography, target .llm-renderer from an unscoped
+parent.
+
+GenericBlockComponent has hardcoded light-theme colors. if your app is dark
+themed, you'll want to override its styles or replace it entirely.
+
+the entire text prop is re-parsed on every update. for very long conversations
+(10k+ characters with many blocks), this could become a performance concern.
+for typical chatbot responses (a few hundred to a few thousand chars) it's fine.
