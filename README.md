@@ -41,7 +41,7 @@ blocks are delimited with full-width brackets:
 【{type:"buttons", buttons:[{text:"Click me", primary:true}]}】
 ```
 
-the LLM writes these inline with its response. during streaming, incomplete blocks show a loading state. malformed JSON gets auto-repaired where possible, with a fallback error state if it can't be fixed.
+the LLM writes these inline with its response. while a block is still streaming, registered components grow in progressively as their JSON fills out; anything that hasn't matched a registered type yet stays invisible. once the closing `】` arrives, an unmatched block commits to a fallback placeholder (unknown type or parse error), which you can suppress entirely with `hideUnknownBlocks`. JSON is auto-repaired where possible.
 
 blocks inside markdown code fences are left alone - they won't be parsed.
 
@@ -72,8 +72,35 @@ const props = defineProps<{
 | `text` | `string` | required | the streamed text to render |
 | `blocks` | `BlockSpec[]` | `[]` | component registry mapping types to Vue components |
 | `theme` | `string` | `'rose-pine'` | shiki theme for code highlighting |
+| `smooth` | `boolean \| Partial<SmoothStreamOptions>` | `false` | enable smoothed pacing and per-character fade-in. pass an object to tune (see below) |
+| `hideUnknownBlocks` | `boolean` | `false` | also suppress the fallback placeholder that appears when a block commits with an unknown type or malformed data |
 
 available themes: `rose-pine`, `rose-pine-moon`, `rose-pine-dawn`, `vitesse-dark`, `vitesse-light`, `github-dark`, `github-light`, `dracula`, `nord`, `one-dark-pro`
+
+## smoothed streaming
+
+LLM streams arrive in irregular bursts - tokens land in clusters at uneven intervals. set `smooth` to render text at a steady, paced rate with a per-character fade-in:
+
+```vue
+<LLMRenderer :text="streamedText" :blocks="blocks" smooth />
+```
+
+a `requestAnimationFrame` pacer drains the backlog within `settleMs`, bounding how far behind the real stream it can fall. a fast stream stays fast - it gets a brief tail, not an inflated animation. on top of the pacing, trailing characters carry an opacity ramp with a tighter blur ramp at the very frontier.
+
+code blocks fade in too: in smooth mode, shiki output is highlighted to a string so the same per-character ramp runs through it. with `smooth` off, code keeps the original `ShikiCachedRenderer` streaming path untouched.
+
+pass an object to tune:
+
+| option | default | description |
+|--------|---------|-------------|
+| `settleMs` | `260` | time to drain the current backlog, in ms. also bounds how far behind the stream the pacer can fall |
+| `minCps` | `22` | floor on reveal speed in chars/sec, so the final characters always finish promptly |
+| `fade` | `true` | whether trailing characters fade in |
+| `fadeWindow` | `64` | width of the opacity ramp, in characters |
+| `fadeBlurWindow` | `12` | width of the blur ramp, in characters (kept tighter than the opacity ramp so blur hugs the frontier) |
+| `fadeBlur` | `3.5` | blur on the newest character, in pixels |
+
+respects `prefers-reduced-motion`. `useSmoothStream` is also exported if you want to drive your own UI from a paced text ref.
 
 ## included components
 
@@ -95,6 +122,9 @@ import {
   GenericBlockComponent,
   ButtonsComponent,
   RadioButtonsComponent,
+  useSmoothStream,
+  applyFade,
+  renderMarkdown,
   getShikiHighlighter,
 } from 'vue-llm-ui'
 ```
