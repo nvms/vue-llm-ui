@@ -1,400 +1,305 @@
 <template>
   <div class="app">
-    <header class="header">
-      <h1>vue-llm-ui</h1>
-    </header>
+    <div class="bar">
+      <button class="replay" @click="startDemo">
+        <span class="replay-glyph" :class="{ spinning: isStreaming }">↻</span>
+        {{ isStreaming ? "Streaming" : "Replay" }}
+      </button>
 
-    <main class="main">
-      <div class="controls">
-        <button @click="startDemo" :disabled="isStreaming" class="demo-button">
-          {{ isStreaming ? "Streaming..." : "Start Demo" }}
-        </button>
-        <button @click="resetDemo" :disabled="isStreaming" class="reset-button">
-          Reset
-        </button>
-        <div class="speed-control">
-          <label>Speed: </label>
-          <input
-            type="range"
-            v-model="streamSpeed"
-            min="5"
-            max="50"
-            :disabled="isStreaming"
-          />
-          <span>{{ streamSpeed }}ms</span>
-        </div>
-      </div>
-
-      <div class="renderer-container">
-        <LLMRenderer :text="streamedText" :blocks="blockSpecs" theme="github-dark" />
-      </div>
-
-      <div class="debug-info" v-if="showDebug">
-        <details>
-          <summary>Debug Info</summary>
-          <div class="debug-content">
-            <div>
-              <strong>Characters streamed:</strong> {{ streamedText.length }} /
-              {{ fullDemoText.length }}
-            </div>
-            <div><strong>Is streaming:</strong> {{ isStreaming }}</div>
-            <div>
-              <strong>Stream speed:</strong> {{ streamSpeed }}ms per character
-            </div>
-            <div class="raw-text">
-              <strong>Raw text:</strong>
-              <pre>{{ streamedText }}</pre>
-            </div>
-          </div>
-        </details>
-      </div>
-    </main>
-
-    <footer class="footer">
-      <label class="debug-toggle">
-        <input type="checkbox" v-model="showDebug" />
-        Show debug info
+      <label class="toggle">
+        <input type="checkbox" v-model="smooth" />
+        <span class="track"><span class="thumb" /></span>
+        <span class="toggle-text">Smoothed streaming</span>
       </label>
-    </footer>
+    </div>
+
+    <p class="hint">
+      Tokens arrive in bursts at uneven intervals. With smoothing on, they are
+      paced out and faded in at a steady rate - toggle it mid-replay to
+      feel the difference.
+    </p>
+
+    <div class="surface">
+      <LLMRenderer
+        :text="streamedText"
+        :blocks="blockSpecs"
+        :smooth="smooth"
+        theme="github-light"
+      />
+      <span v-if="!streamedText" class="placeholder">Waiting to stream&hellip;</span>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, watch, onMounted, onUnmounted } from "vue";
 import LLMRenderer from "./components/LLMRenderer.vue";
 import ButtonsComponent from "./components/ButtonsComponent.vue";
 import RadioButtonsComponent from "./components/RadioButtonsComponent.vue";
 
 const streamedText = ref("");
 const isStreaming = ref(false);
-const streamSpeed = ref(0); // milliseconds per character
-const showDebug = ref(false);
+const smooth = ref(true);
 
-// Full demo text with embedded blocks
-const fullDemoText = `# Welcome to the Vue LLM UI Demo! 🎉
+const fullDemoText = `Debouncing delays a function call until a set amount of time has passed without that function being called again. It is the right tool whenever a cheap event fires far more often than the work behind it should run - typing in a search field, resizing a window, or reacting to scroll.
+
+## The core idea
+
+Each call resets a timer. The wrapped function only runs once that timer completes without being interrupted.
 
 \`\`\`javascript
-// Initialize the LLM renderer
-import { LLMRenderer } from 'vue-llm-ui'
+function debounce(fn, delay) {
+  let timer
 
-// Set up your streaming text
-const streamedText = ref('')
-const blockSpecs = [
-  {
-    type: 'buttons',
-    component: ButtonsComponent
+  return function (...args) {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn.apply(this, args), delay)
   }
-]
-
-// Use in template
-// <LLMRenderer :text="streamedText" :blocks="blockSpecs" />
+}
 \`\`\`
 
-This library allows you to render **streamed LLM text** with embedded interactive UI components. Let me show you how it works:
+Wrap any function you want to rate-limit, then call the result instead of the original:
 
-## Basic Text Rendering
+\`\`\`javascript
+const onSearch = debounce((query) => {
+  fetchResults(query)
+}, 300)
 
-All regular text is rendered as **Markdown**, so you can use:
-- *Italic text*
-- **Bold text** 
-- \`inline code\`
-- [Links](https://vuejs.org)
-- And more!
+input.addEventListener("input", (event) => {
+  onSearch(event.target.value)
+})
+\`\`\`
 
-## Interactive Buttons
+## Debounce or throttle?
 
-Here are some interactive buttons embedded in the stream:
+The two are easy to mix up:
+
+- **Debounce** waits for a gap in activity, then runs once.
+- **Throttle** runs on a fixed cadence while activity continues.
+
+Reach for \`debounce\` when only the final state matters - the last thing the user typed. Reach for \`throttle\` when you want steady updates *during* an interaction, like a scroll indicator.
+
+Did that make sense so far?
 
 【{
   type:"buttons",
   buttons:[
-    {text:"Star ⭐",primary:true},
-    {text:"Fork 🍴",secondary:true},
-    {text:"Download 📥"}
+    {text:"Yes, keep going",primary:true},
+    {text:"Show another example"},
+    {text:"Explain it differently"}
   ]
 }】
 
-## Custom Components
-
-You can also create custom block types. Here's a radio button component:
+If you want to go further, pick where to take it next:
 
 【{
   type:"radio-buttons",
-  title:"What's your favorite framework?",
-  defaultValue:"vue",
+  title:"What should we cover next?",
+  defaultValue:"leading",
   options:[
-    {value:"react",text:"React ⚛️"},
-    {value:"vue",text:"Vue.js 💚"},
-    {value:"angular",text:"Angular 🅰️"},
-    {value:"svelte",text:"Svelte 🧡"}
+    {value:"leading",text:"A leading-edge variant that fires immediately"},
+    {value:"cancel",text:"Adding a cancel method to stop a pending call"},
+    {value:"hook",text:"Turning it into a reusable hook"}
   ]
 }】
 
-## Code Blocks with Syntax Highlighting
-
-The library automatically handles code blocks in markdown with beautiful syntax highlighting.
-
-**Available themes:** rose-pine, rose-pine-moon, rose-pine-dawn, vitesse-dark, vitesse-light, github-dark, github-light, dracula, nord, one-dark-pro
+Here is the leading-edge version. It runs on the very first call, then stays quiet until activity settles down again:
 
 \`\`\`javascript
-// Initialize the LLM renderer
-import { LLMRenderer } from 'vue-llm-ui'
+function debounce(fn, delay, { leading = false } = {}) {
+  let timer = null
 
-// Set up your streaming text
-const streamedText = ref('')
-const blockSpecs = [
-  {
-    type: 'buttons',
-    component: ButtonsComponent
+  return function (...args) {
+    const callNow = leading && timer === null
+
+    clearTimeout(timer)
+    timer = setTimeout(() => {
+      timer = null
+      if (!leading) fn.apply(this, args)
+    }, delay)
+
+    if (callNow) fn.apply(this, args)
   }
-]
-
-// Use in template
-// <LLMRenderer :text="streamedText" :blocks="blockSpecs" />
+}
 \`\`\`
 
-Here's the same concept in Python for backend integration:
+Small, composable, and easy to adapt - that is the whole pattern.
 
-\`\`\`python
-# Stream LLM responses with embedded UI blocks
-import json
-import asyncio
+## When a block does not fit
 
-class LLMStreamer:
-    def __init__(self):
-        self.text_buffer = ""
-        self.blocks = []
-    
-    async def stream_response(self, prompt):
-        # Simulate streaming from LLM
-        response = 'Here's a button: 【{\"type\":\"buttons\",\"buttons\":[{\"text\":\"Click me\"}]}】'
-        
-        for char in response:
-            self.text_buffer += char
-            yield self.text_buffer
-            await asyncio.sleep(0.1)
+Not every block arrives clean. When a block's type has no registered component, the renderer falls back to a readable summary instead of breaking the response:
 
-# Usage
-streamer = LLMStreamer()
-async for partial_text in streamer.stream_response("Hello"):
-    print(f"Streamed: {partial_text}")
-\`\`\`
+【{type:"timeline",events:["draft","review","ship"]}】
 
-## Error Handling
+And when a block's data is genuinely malformed, the problem is surfaced rather than silently swallowed:
 
-The library gracefully handles malformed JSON. Here's an intentionally broken block:
+【{type:"buttons" label "Retry" action retry}】`;
 
-【{type:"buttons",buttons:[{text:"Broken button"】
-
-And here's a block with an unknown type:
-
-【{type:"unknown-widget",data:"This will show a fallback component"}】
-
-## Streaming Simulation
-
-This demo simulates real-time streaming by gradually revealing the text character by character. In a real application, you'd connect this to your LLM's streaming API.
-
-## Features
-
-- ✅ **Real-time rendering** - Updates as text streams in
-- ✅ **JSON repair** - Fixes malformed JSON automatically  
-- ✅ **Extensible blocks** - Easy to add custom components
-- ✅ **Graceful fallbacks** - Handles unknown/incomplete blocks
-- ✅ **Markdown support** - Full markdown rendering for text
-- ✅ **TypeScript ready** - Built with TypeScript
-
-That's the demo! Try clicking the buttons above and see how the components work. 🚀`;
-
-// Block specifications for custom components
 const blockSpecs = [
-  {
-    type: "buttons",
-    component: ButtonsComponent,
-  },
-  {
-    type: "radio-buttons",
-    component: RadioButtonsComponent,
-  },
+  { type: "buttons", component: ButtonsComponent },
+  { type: "radio-buttons", component: RadioButtonsComponent },
 ];
 
-let streamInterval: number | null = null;
+let timer: number | null = null;
+let cursor = 0;
+
+// simulate a real LLM stream: chunks of a few characters arriving at uneven
+// intervals, with the occasional longer stall
+const pump = () => {
+  if (cursor >= fullDemoText.length) {
+    isStreaming.value = false;
+    timer = null;
+    return;
+  }
+  const chunk = 2 + Math.floor(Math.random() * 7);
+  cursor = Math.min(fullDemoText.length, cursor + chunk);
+  streamedText.value = fullDemoText.slice(0, cursor);
+
+  const stall = Math.random() < 0.1 ? 160 + Math.random() * 280 : 0;
+  const delay = 12 + Math.random() * 38 + stall;
+  timer = window.setTimeout(pump, delay);
+};
 
 const startDemo = () => {
-  if (isStreaming.value) return;
-
+  if (timer) clearTimeout(timer);
+  streamedText.value = "";
+  cursor = 0;
   isStreaming.value = true;
-  streamedText.value = "";
-
-  let currentIndex = 0;
-
-  streamInterval = setInterval(() => {
-    if (currentIndex < fullDemoText.length) {
-      streamedText.value += fullDemoText[currentIndex];
-      currentIndex++;
-    } else {
-      stopStreaming();
-    }
-  }, streamSpeed.value);
+  timer = window.setTimeout(pump, 80);
 };
 
-const stopStreaming = () => {
-  if (streamInterval) {
-    clearInterval(streamInterval);
-    streamInterval = null;
-  }
-  isStreaming.value = false;
-};
+// replay whenever the toggle flips so the effect is visible immediately
+watch(smooth, () => startDemo());
 
-const resetDemo = () => {
-  stopStreaming();
-  streamedText.value = "";
-};
-
-// Auto-start demo on mount
 onMounted(() => {
-  setTimeout(() => {
-    startDemo();
-  }, 500);
+  setTimeout(startDemo, 400);
+});
+
+onUnmounted(() => {
+  if (timer) clearTimeout(timer);
 });
 </script>
 
 <style scoped>
 .app {
-  max-width: 800px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 20px;
-  font-family: system-ui, -apple-system, sans-serif;
+  padding: 56px 24px 80px;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.replay {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 550;
+  color: #2a2a26;
+  background: #fff;
+  border: 1px solid #dcdcd4;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.replay:hover {
+  background: #fbfbf9;
+  border-color: #c4c4ba;
+}
+
+.replay-glyph {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.replay-glyph.spinning {
+  animation: spin 1.1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.track {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: #d8d8d0;
+  padding: 2px;
+  transition: background 0.18s ease;
+}
+
+.thumb {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.18s ease;
+}
+
+.toggle input:checked + .track {
+  background: #1d1d1a;
+}
+
+.toggle input:checked + .track .thumb {
+  transform: translateX(16px);
+}
+
+.toggle input:focus-visible + .track {
+  outline: 2px solid #3056d3;
+  outline-offset: 2px;
+}
+
+.toggle-text {
+  font-size: 13px;
+  font-weight: 550;
+  color: #44443e;
+}
+
+.hint {
+  margin: 14px 0 22px;
+  font-size: 13px;
   line-height: 1.6;
+  color: #8a8a80;
+  max-width: 56ch;
 }
 
-.header {
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #e0e0e0;
+.surface {
+  position: relative;
+  min-height: 240px;
+  background: #fff;
+  border: 1px solid #e6e6df;
+  border-radius: 14px;
+  padding: 30px 34px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 8px 24px rgba(0, 0, 0, 0.04);
 }
 
-.header h1 {
-  margin-bottom: 8px;
-}
-
-.header p {
-  font-size: 16px;
-}
-
-.main {
-  margin-bottom: 30px;
-}
-
-.controls {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  flex-wrap: wrap;
-}
-
-.demo-button,
-.reset-button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.demo-button {
-  background: #2196f3;
-  color: white;
-}
-
-.demo-button:hover:not(:disabled) {
-  background: #1976d2;
-}
-
-.demo-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-.reset-button {
-  background: #6c757d;
-  color: white;
-}
-
-.reset-button:hover:not(:disabled) {
-  background: #5a6268;
-}
-
-.reset-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-.speed-control {
-  display: flex;
-  gap: 8px;
+.placeholder {
+  color: #b5b5ab;
   font-size: 14px;
-}
-
-.speed-control input[type="range"] {
-  width: 100px;
-}
-
-.renderer-container {
-  min-height: 200px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 20px;
-  background: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  color: black;
-}
-
-.debug-info {
-  margin-top: 20px;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
-  color: black;
-}
-
-.debug-content {
-  margin-top: 12px;
-  font-size: 14px;
-}
-
-.debug-content > div {
-  margin-bottom: 8px;
-}
-
-.raw-text {
-  margin-top: 12px;
-}
-
-.raw-text pre {
-  background: white;
-  padding: 12px;
-  border-radius: 4px;
-  border: 1px solid #ddd;
-  font-size: 12px;
-  overflow-x: auto;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.footer {
-  padding-top: 20px;
-  border-top: 1px solid #e0e0e0;
-}
-
-.debug-toggle {
-  display: flex;
-  gap: 8px;
-  font-size: 14px;
-  cursor: pointer;
 }
 </style>

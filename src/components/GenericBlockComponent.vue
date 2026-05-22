@@ -1,50 +1,34 @@
 <template>
-  <div class="generic-block" :class="{ loading: loading, error: error }">
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <span>Loading block...</span>
+  <div class="generic-block" :class="{ 'is-error': error }">
+    <div v-if="loading" class="gb-pending">
+      <span class="gb-pulse" />
+      <span class="gb-pending-text">Receiving block</span>
     </div>
 
-    <div v-else-if="error" class="error-state">
-      <div class="error-icon">⚠️</div>
-      <div class="error-content">
-        <div class="error-title">Block Parse Error</div>
-        <div class="error-message">{{ error }}</div>
-        <details class="raw-content">
-          <summary>Raw content</summary>
-          <pre>{{ rawContent }}</pre>
-        </details>
-      </div>
+    <div v-else-if="error" class="gb-body">
+      <div class="gb-label">Block could not be parsed</div>
+      <p class="gb-message">{{ error }}</p>
+      <pre v-if="rawContent" class="gb-code">{{ rawContent }}</pre>
     </div>
 
-    <div v-else-if="block" class="unknown-type">
-      <div class="unknown-icon">🔧</div>
-      <div class="unknown-content">
-        <div class="unknown-title">
-          Unknown block type: <code>{{ block.type || "undefined" }}</code>
-        </div>
-        <div class="block-preview">
-          <details>
-            <summary>Block data</summary>
-            <pre>{{ JSON.stringify(block, null, 2) }}</pre>
-          </details>
-        </div>
+    <div v-else-if="block" class="gb-body">
+      <div class="gb-label">
+        Unrecognized block
+        <code class="gb-type">{{ block.type || "untyped" }}</code>
       </div>
+      <pre class="gb-code">{{ formatted }}</pre>
     </div>
 
-    <div v-else class="incomplete-block">
-      <div class="incomplete-icon">⏳</div>
-      <div class="incomplete-content">
-        <div class="incomplete-title">Parsing block...</div>
-        <div class="incomplete-preview" v-if="rawContent">
-          <code>【{{ rawContent }}{{ isComplete ? "" : "..." }}</code>
-        </div>
-      </div>
+    <div v-else class="gb-pending">
+      <span class="gb-pulse" />
+      <span class="gb-pending-text">Receiving block</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+
 interface Props {
   block?: any;
   isComplete?: boolean;
@@ -53,128 +37,120 @@ interface Props {
   loading?: boolean;
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   block: null,
   isComplete: false,
   rawContent: "",
   error: "",
   loading: false,
 });
+
+const formatted = computed(() => {
+  try {
+    return JSON.stringify(props.block, null, 2);
+  } catch {
+    return String(props.block);
+  }
+});
 </script>
 
 <style scoped>
 .generic-block {
-  border: 2px dashed #e0e0e0;
-  border-radius: 8px;
-  padding: 16px;
+  border: 1px solid #e6e6e1;
+  border-radius: 10px;
+  padding: 14px 16px;
   margin: 8px 0;
-  background: #fafafa;
-  font-family: system-ui, -apple-system, sans-serif;
-}
-
-.generic-block.loading {
-  border-color: #2196f3;
-  background: #f3f9ff;
-}
-
-.generic-block.error {
-  border-color: #f44336;
-  background: #fff5f5;
-}
-
-.loading-state,
-.error-state,
-.unknown-type,
-.incomplete-block {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #e0e0e0;
-  border-top: 2px solid #2196f3;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.error-icon,
-.unknown-icon,
-.incomplete-icon {
-  font-size: 20px;
-  flex-shrink: 0;
-}
-
-.error-content,
-.unknown-content,
-.incomplete-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.error-title,
-.unknown-title,
-.incomplete-title {
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: #333;
-}
-
-.error-message {
-  color: #666;
+  background: #fbfbf9;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
   font-size: 14px;
-  margin-bottom: 8px;
+  color: #2a2a26;
 }
 
-.raw-content,
-.block-preview {
-  margin-top: 8px;
+.generic-block.is-error {
+  border-color: #e7cdc8;
+  background: #fcf6f5;
 }
 
-.raw-content summary,
-.block-preview summary {
-  cursor: pointer;
-  font-size: 12px;
-  color: #666;
-  user-select: none;
+.gb-pending {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #8a8a80;
 }
 
-.raw-content pre,
-.block-preview pre {
-  background: #f0f0f0;
-  padding: 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  overflow-x: auto;
-  margin: 4px 0 0 0;
+.gb-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #b6b6ab;
+  flex-shrink: 0;
+  animation: gb-pulse 1.1s ease-in-out infinite;
 }
 
-.incomplete-preview {
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-  font-size: 12px;
-  color: #666;
-  background: #f0f0f0;
-  padding: 4px 8px;
-  border-radius: 4px;
-  margin-top: 4px;
+@keyframes gb-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-code {
-  background: #f0f0f0;
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+.gb-pending-text {
   font-size: 13px;
+  letter-spacing: 0.01em;
+}
+
+.gb-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gb-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: #44443e;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.is-error .gb-label {
+  color: #a4453a;
+}
+
+.gb-type {
+  font-family: "Fira Code", "SF Mono", "Cascadia Code", monospace;
+  font-size: 12px;
+  font-weight: 500;
+  background: #efefe9;
+  border: 1px solid #e3e3db;
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: #55554d;
+}
+
+.gb-message {
+  margin: 0;
+  font-size: 13px;
+  color: #6b6b62;
+}
+
+.gb-code {
+  margin: 0;
+  font-family: "Fira Code", "SF Mono", "Cascadia Code", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #55554d;
+  background: #f3f3ee;
+  border: 1px solid #e6e6df;
+  border-radius: 6px;
+  padding: 10px 12px;
+  overflow: auto;
+  max-height: 180px;
 }
 </style>
