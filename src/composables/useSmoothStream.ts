@@ -7,6 +7,11 @@ export interface SmoothStreamOptions {
   // bounds how far behind the real stream the pacer can fall - a fast stream
   // is never stretched into a long animation, it just gets a brief tail
   settleMs: number;
+  // how long, in ms, the source must be idle after the pacer catches up before
+  // the trail starts settling toward opaque. brief burst gaps under this
+  // threshold leave the active fade in place so the trail does not visibly
+  // cycle between tokens
+  settleHoldMs: number;
   // floor on reveal speed, in characters per second, so the final handful of
   // characters always finishes promptly
   minCps: number;
@@ -53,10 +58,20 @@ export function useSmoothStream(
   let postroll = 0;
   let raf = 0;
   let lastT = 0;
+  let lastGrowAt = 0;
+  let idleTimer = 0;
 
   const reduced = prefersReducedMotion();
 
+  const clearIdle = () => {
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      idleTimer = 0;
+    }
+  };
+
   const stop = () => {
+    clearIdle();
     if (raf) {
       cancelAnimationFrame(raf);
       raf = 0;
@@ -101,8 +116,25 @@ export function useSmoothStream(
 
     displayed.value = source.value;
 
-    // text is fully revealed - keep advancing the fade frontier past the end
-    // so the last window of characters finishes settling without a pop
+    // pacer is caught up. brief burst gaps under settleHoldMs are treated as
+    // "still streaming" so the trail keeps its active fade. only after a real
+    // idle period do we start settling the trail toward opaque
+    const idleMs = now - lastGrowAt;
+    if (idleMs < opts.settleHoldMs) {
+      fadeOffset.value = 0;
+      fadeActive.value = opts.fade;
+      raf = 0;
+      const delay = Math.max(16, opts.settleHoldMs - idleMs);
+      idleTimer = window.setTimeout(() => {
+        idleTimer = 0;
+        lastT = performance.now();
+        raf = requestAnimationFrame(frame);
+      }, delay);
+      return;
+    }
+
+    // truly idle - postroll advances the frontier past the text end so the
+    // trailing window of characters finishes settling without a pop
     if (opts.fade && postroll < opts.fadeWindow) {
       const drainCps = opts.fadeWindow / (opts.settleMs / 1000);
       postroll = Math.min(opts.fadeWindow, postroll + drainCps * dt);
@@ -113,9 +145,7 @@ export function useSmoothStream(
     }
 
     // fully settled - park fadeOffset at fadeWindow so the live chunk stays in
-    // the same per-character render path. flipping the fade off here would
-    // briefly restructure the DOM (spans -> text nodes -> spans again on the
-    // next burst) and cause a visible flicker between bursts
+    // the same per-character render path even when more content arrives later
     if (opts.fade) fadeOffset.value = opts.fadeWindow;
     raf = 0;
   };
@@ -131,6 +161,7 @@ export function useSmoothStream(
       settle();
       return;
     }
+    lastGrowAt = performance.now();
     // the source diverged from what we've shown - treat it as a fresh stream
     if (!next.startsWith(displayed.value)) {
       shown = 0;
@@ -139,6 +170,7 @@ export function useSmoothStream(
     }
     if (shown < next.length) {
       postroll = 0;
+      clearIdle();
       start();
     }
   });
@@ -156,6 +188,7 @@ export function useSmoothStream(
     // content was already present at mount - stream it in from the start
     shown = 0;
     displayed.value = "";
+    lastGrowAt = performance.now();
     start();
   }
 

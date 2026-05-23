@@ -94,6 +94,7 @@ pass an object to tune:
 | option | default | description |
 |--------|---------|-------------|
 | `settleMs` | `260` | time to drain the current backlog, in ms. also bounds how far behind the stream the pacer can fall |
+| `settleHoldMs` | `600` | how long the source must be idle after the pacer catches up before the trail starts settling toward opaque. brief burst gaps under this threshold leave the active fade in place |
 | `minCps` | `22` | floor on reveal speed in chars/sec, so the final characters always finish promptly |
 | `fade` | `true` | whether trailing characters fade in |
 | `fadeWindow` | `64` | width of the opacity ramp, in characters |

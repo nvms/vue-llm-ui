@@ -53,6 +53,7 @@ const props = withDefaults(defineProps<Props>(), {
 const SMOOTH_DEFAULTS: SmoothStreamOptions = {
   enabled: false,
   settleMs: 260,
+  settleHoldMs: 600,
   minCps: 22,
   fade: true,
   fadeWindow: 64,
