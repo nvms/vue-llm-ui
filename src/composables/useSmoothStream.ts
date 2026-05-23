@@ -112,8 +112,11 @@ export function useSmoothStream(
       return;
     }
 
-    fadeOffset.value = 0;
-    fadeActive.value = false;
+    // fully settled - park fadeOffset at fadeWindow so the live chunk stays in
+    // the same per-character render path. flipping the fade off here would
+    // briefly restructure the DOM (spans -> text nodes -> spans again on the
+    // next burst) and cause a visible flicker between bursts
+    if (opts.fade) fadeOffset.value = opts.fadeWindow;
     raf = 0;
   };
 

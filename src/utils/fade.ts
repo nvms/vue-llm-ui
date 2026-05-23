@@ -18,11 +18,22 @@ function smoothstep(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
+// counts visible text characters in an HTML fragment, ignoring tags. used to
+// decide how far back the fade window reaches across adjacent chunks
+export function measureRenderedText(html: string): number {
+  if (typeof DOMParser === "undefined") return 0;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return doc.body.textContent?.length ?? 0;
+}
+
 // wraps the last `size` rendered characters of an HTML fragment in spans with a
 // left-to-right opacity ramp, so freshly revealed text fades in. operates on a
 // detached document so it never touches vue's live DOM
 export function applyFade(html: string, opts: FadeOptions): string {
   if (typeof DOMParser === "undefined" || opts.size <= 0) return html;
+  // frontier sits at or past total + size -> nothing falls within the window,
+  // skip the parse/serialize cycle entirely
+  if (opts.offset >= opts.size) return html;
 
   const doc = new DOMParser().parseFromString(html, "text/html");
   const body = doc.body;
