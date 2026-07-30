@@ -87,7 +87,7 @@ LLM streams arrive in irregular bursts - tokens land in clusters at uneven inter
 
 a `requestAnimationFrame` pacer drains the backlog within `settleMs`, bounding how far behind the real stream it can fall. a fast stream stays fast - it gets a brief tail, not an inflated animation. on top of the pacing, trailing characters carry an opacity ramp with a tighter blur ramp at the very frontier.
 
-code blocks fade in too: in smooth mode, shiki output is highlighted to a string so the same per-character ramp runs through it. with `smooth` off, code keeps the original `ShikiCachedRenderer` streaming path untouched.
+code blocks fade in too: in smooth mode, shiki output is highlighted to a string so the same per-character ramp runs through it. rendered block components reveal from zero to their natural height with matching fade and blur, and continue animating smoothly if their content changes height. with `smooth` off, code and components render without these transitions.
 
 pass an object to tune:
 

@@ -1,32 +1,54 @@
 <template>
   <div class="app">
-    <div class="bar">
-      <button class="replay" @click="startDemo">
-        <span class="replay-glyph" :class="{ spinning: isStreaming }">↻</span>
-        {{ isStreaming ? "Streaming" : "Replay" }}
-      </button>
+    <div class="demo-grid">
+      <header class="primary-demo-heading">
+        <div class="bar">
+          <button class="replay" @click="startDemo">
+            <span class="replay-glyph" :class="{ spinning: isStreaming }">↻</span>
+            {{ isStreaming ? "Streaming" : "Replay" }}
+          </button>
 
-      <label class="toggle">
-        <input type="checkbox" v-model="smooth" />
-        <span class="track"><span class="thumb" /></span>
-        <span class="toggle-text">Smoothed streaming</span>
-      </label>
-    </div>
+          <label class="toggle">
+            <input type="checkbox" v-model="smooth" />
+            <span class="track"><span class="thumb" /></span>
+            <span class="toggle-text">Smoothed streaming</span>
+          </label>
+        </div>
 
-    <p class="hint">
-      Tokens arrive in bursts at uneven intervals. With smoothing on, they are
-      paced out and faded in at a steady rate - toggle it mid-replay to
-      feel the difference.
-    </p>
+        <p class="hint">
+          Tokens arrive in bursts at uneven intervals. With smoothing on, they are
+          paced out and faded in at a steady rate - toggle it mid-replay to
+          feel the difference.
+        </p>
+      </header>
 
-    <div class="surface">
-      <LLMRenderer
-        :text="streamedText"
-        :blocks="blockSpecs"
-        :smooth="smooth"
-        theme="github-light"
-      />
-      <span v-if="!streamedText" class="placeholder">Waiting to stream&hellip;</span>
+      <div class="reveal-demo-copy">
+        <div>
+          <h2>Tall component reveal</h2>
+          <p>Replay just the component entrance without waiting for the full response.</p>
+        </div>
+        <button class="replay" @click="replayTallDemo">Replay component</button>
+      </div>
+
+      <div class="surface primary-surface">
+        <LLMRenderer
+          :text="streamedText"
+          :blocks="blockSpecs"
+          :smooth="smooth"
+          theme="github-light"
+        />
+        <span v-if="!streamedText" class="placeholder">Waiting to stream&hellip;</span>
+      </div>
+
+      <div class="surface reveal-surface">
+        <LLMRenderer
+          :key="tallDemoKey"
+          :text="tallDemoText"
+          :blocks="blockSpecs"
+          :smooth="smooth"
+          theme="github-light"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -36,10 +58,33 @@ import { ref, watch, onMounted, onUnmounted } from "vue";
 import LLMRenderer from "./components/LLMRenderer.vue";
 import ButtonsComponent from "./components/ButtonsComponent.vue";
 import RadioButtonsComponent from "./components/RadioButtonsComponent.vue";
+import TallDemoComponent from "./components/TallDemoComponent.vue";
 
 const streamedText = ref("");
 const isStreaming = ref(false);
 const smooth = ref(true);
+const tallDemoKey = ref(0);
+
+const tallDemoText = `The model returned a complete component in a single burst:
+
+【{
+  type:"tall-demo",
+  title:"Launch readiness checklist",
+  items:[
+    "Confirm production environment variables",
+    "Run database migrations",
+    "Verify health checks and alerts",
+    "Warm critical caches",
+    "Test the rollback procedure",
+    "Notify support and operations",
+    "Enable traffic gradually",
+    "Monitor errors and latency"
+  ]
+}】`;
+
+const replayTallDemo = () => {
+  tallDemoKey.value += 1;
+};
 
 const fullDemoText = `Debouncing delays a function call until a set amount of time has passed without that function being called again. It is the right tool whenever a cheap event fires far more often than the work behind it should run - typing in a search field, resizing a window, or reacting to scroll.
 
@@ -138,6 +183,7 @@ And when a block's data is genuinely malformed, the problem is surfaced rather t
 const blockSpecs = [
   { type: "buttons", component: ButtonsComponent },
   { type: "radio-buttons", component: RadioButtonsComponent },
+  { type: "tall-demo", component: TallDemoComponent },
 ];
 
 let timer: number | null = null;
@@ -182,7 +228,7 @@ onUnmounted(() => {
 
 <style scoped>
 .app {
-  max-width: 720px;
+  max-width: 1480px;
   margin: 0 auto;
   padding: 56px 24px 80px;
 }
@@ -301,5 +347,96 @@ onUnmounted(() => {
 .placeholder {
   color: #b5b5ab;
   font-size: 14px;
+}
+
+.demo-grid {
+  display: grid;
+  grid-template-areas:
+    "primary-heading"
+    "primary-surface"
+    "reveal-heading"
+    "reveal-surface";
+  grid-template-columns: minmax(0, 720px);
+  gap: 14px;
+  align-items: start;
+}
+
+.primary-demo-heading,
+.reveal-demo-copy,
+.primary-surface,
+.reveal-surface {
+  min-width: 0;
+}
+
+.primary-demo-heading {
+  display: grid;
+  grid-area: primary-heading;
+  align-content: start;
+}
+
+.reveal-demo-copy {
+  grid-area: reveal-heading;
+}
+
+.primary-surface {
+  grid-area: primary-surface;
+}
+
+.reveal-surface {
+  grid-area: reveal-surface;
+}
+
+.reveal-demo-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.reveal-demo-copy h2 {
+  margin: 0 0 4px;
+  color: #2a2a26;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.reveal-demo-copy p {
+  margin: 0;
+  color: #8a8a80;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.reveal-demo-copy .replay {
+  flex: 0 0 auto;
+}
+
+.reveal-surface {
+  min-height: 110px;
+}
+
+@media (min-width: 1120px) {
+  .demo-grid {
+    grid-template-areas:
+      "primary-heading reveal-heading"
+      "primary-surface reveal-surface";
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 32px;
+    row-gap: 14px;
+  }
+
+  .primary-demo-heading,
+  .reveal-demo-copy {
+    align-self: stretch;
+  }
+
+}
+
+@media (max-width: 560px) {
+  .reveal-demo-copy {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
 }
 </style>

@@ -1,11 +1,16 @@
 <template>
   <div class="llm-renderer">
-    <component
-      v-for="(chunk, index) in renderChunks"
-      :key="`chunk-${index}`"
-      :is="chunk.component"
-      v-bind="chunk.props"
-    />
+    <template v-for="(chunk, index) in renderChunks" :key="`chunk-${index}`">
+      <ComponentReveal
+        v-if="chunk.reveal"
+        :duration="componentRevealDuration"
+        :fade="smoothOptions.fade"
+        :blur="smoothOptions.fadeBlur"
+      >
+        <component :is="chunk.component" v-bind="chunk.props" />
+      </ComponentReveal>
+      <component v-else :is="chunk.component" v-bind="chunk.props" />
+    </template>
   </div>
 </template>
 
@@ -14,6 +19,7 @@ import { computed } from "vue";
 import { jsonrepair } from "jsonrepair";
 import MarkdownRenderer from "./MarkdownRenderer.vue";
 import GenericBlockComponent from "./GenericBlockComponent.vue";
+import ComponentReveal from "./ComponentReveal.vue";
 import {
   useSmoothStream,
   type SmoothStreamOptions,
@@ -27,6 +33,7 @@ interface BlockSpec {
 interface RenderChunk {
   component: any;
   props: Record<string, any>;
+  reveal?: boolean;
 }
 
 interface Props {
@@ -81,6 +88,9 @@ const activeText = computed(() =>
 // in smooth mode code is highlighted to a string so the fade can run through
 // it; otherwise code keeps the original streaming-component path untouched
 const smoothMode = computed(() => smoothOptions.value.enabled);
+const componentRevealDuration = computed(() =>
+  Math.max(smoothOptions.value.settleMs, smoothOptions.value.settleHoldMs)
+);
 
 // fade props applied only to the live streaming tail (the final markdown chunk)
 const fadeBindings = computed(() => {
@@ -166,10 +176,12 @@ const renderChunks = computed<RenderChunk[]>(() => {
           chunks.push({
             component: blockRegistry.value[blockData.type],
             props: { block: blockData },
+            reveal: smoothMode.value,
           });
         } else if (isComplete && !props.hideUnknownBlocks) {
           chunks.push({
             component: GenericBlockComponent,
+            reveal: smoothMode.value,
             props: {
               block: blockData,
               isComplete: true,
@@ -181,6 +193,7 @@ const renderChunks = computed<RenderChunk[]>(() => {
         if (isComplete && !props.hideUnknownBlocks) {
           chunks.push({
             component: GenericBlockComponent,
+            reveal: smoothMode.value,
             props: {
               block: null,
               isComplete: true,
