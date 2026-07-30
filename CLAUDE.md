@@ -8,6 +8,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run build` - Build for production (runs TypeScript check then Vite build)
 - `npm run preview` - Preview production build locally
 
+## Releases
+
+npm publishing uses GitHub Actions trusted publishing through `.github/workflows/publish.yml`; no `NPM_TOKEN` is required. To release:
+
+1. Update the version in `package.json` and `package-lock.json`.
+2. Run `npm run build` and `npm run build:lib`.
+3. Commit and push the release.
+4. Create and push an annotated `v<version>` tag.
+
+Pushing the tag triggers the workflow, which builds and publishes the package to npm with the `latest` tag. The trusted publisher on npm is configured for GitHub user `nvms`, repository `vue-llm-ui`, and workflow `publish.yml`.
+
 ## Project Architecture
 
 This is a Vue 3 + TypeScript + Vite application that provides an LLM streaming UI renderer with embedded interactive components. The core architecture consists of:
