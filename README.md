@@ -47,7 +47,7 @@ blocks inside markdown code fences are left alone - they won't be parsed.
 
 ## writing block components
 
-a block component receives one prop - `block` - which is the parsed JSON object:
+a block component receives two props: `block`, the parsed JSON object, and `complete`, which is false while the block is still streaming and true once its closing `】` has arrived. use `complete` to hold off on anything that needs the final values, such as fetching data by an id the block carries:
 
 ```vue
 <script setup>

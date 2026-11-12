@@ -175,7 +175,7 @@ const renderChunks = computed<RenderChunk[]>(() => {
         if (blockData.type && blockRegistry.value[blockData.type]) {
           chunks.push({
             component: blockRegistry.value[blockData.type],
-            props: { block: blockData },
+            props: { block: blockData, complete: isComplete },
             reveal: smoothMode.value,
           });
         } else if (isComplete && !props.hideUnknownBlocks) {
